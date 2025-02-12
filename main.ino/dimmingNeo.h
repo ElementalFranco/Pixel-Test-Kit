@@ -12,21 +12,22 @@ extern LiquidCrystal_I2C lcd; // Use existing LCD object
 
 // Extern declaration for setPixelColor (defined in another file)
 extern void setPixelColor(int ledIndex, uint8_t red, uint8_t green, uint8_t blue, uint8_t white);
+extern Adafruit_NeoPixel strip; //main declaration is in blinkAllColorNeo
 
 // Forward declaration of dimAllLEDs function
 void dimAllLEDs(int CP, const char* colorName, uint8_t red, uint8_t green, uint8_t blue, uint8_t white);
 
 // Function to dim the LEDs gradually for all LEDs
-void UCS2904B_2(int CP) {
+void UCS2904B_dimming(int CP) {
   strip.updateLength(CP);  // Update the length of the strip to CP LEDs
   strip.begin();           // Initialize the strip
   strip.show();            // Turn all LEDs off to start
 
   // Dimming effect for Red, Green, Blue, and White colors on all LEDs
-  dimAllLEDs(CP, "Red", 0, 255, 0, 0);
-  dimAllLEDs(CP, "Green", 255, 0, 0, 0);
-  dimAllLEDs(CP, "Blue", 0, 0, 255, 0);
-  dimAllLEDs(CP, "White", 0, 0, 0, 255);
+  dimAllLEDs(CP, "Dimming Red", 255, 0, 0, 0);
+  dimAllLEDs(CP, "Dimming Green", 0, 255, 0, 0);
+  dimAllLEDs(CP, "Dimming Blue", 0, 0, 255, 0);
+  dimAllLEDs(CP, "Dimming White", 0, 0, 0, 255);
 
   // Turn all LEDs off
   for (int i = 0; i < CP; i++) {
@@ -52,7 +53,7 @@ void dimAllLEDs(int CP, const char* colorName, uint8_t red, uint8_t green, uint8
     delay(20);  // Small delay for smooth dimming effect
   }
 
-  delay(500);  // Wait for 500 milliseconds before switching to the next color
+  delay(250);  // Wait for 500 milliseconds before switching to the next color
 
   // Decrease brightness gradually for all LEDs
   for (int brightness = 255; brightness >= 0; brightness -= 5) {
@@ -62,4 +63,74 @@ void dimAllLEDs(int CP, const char* colorName, uint8_t red, uint8_t green, uint8
     strip.show();  // Update the strip
     delay(20);     // Small delay for smooth dimming effect
   }
+}
+
+void WS2814_dimming(int CP)
+{
+  Adafruit_NeoPixel strip = Adafruit_NeoPixel(CP, PIN, NEO_RGBW + NEO_KHZ800);
+  strip.begin();
+  strip.show();  // Initialize all pixels to 'off'
+
+  int dimmingSteps = 15;  // Number of steps for dimming effect
+
+  // White dimming
+  lcd.clear();
+  lcd.setCursor(7, 1);
+  lcd.print("Dimming White");
+  for (int step = dimmingSteps; step >= 0; step--) {
+    uint8_t brightness = (255 * step) / dimmingSteps;
+    for (int i = 0; i < CP; i++) {
+      strip.setPixelColor(i, strip.Color(brightness, 0, 0, 0));
+    }
+    strip.show();
+    delay(100);  // Adjust delay for smoother/slower dimming
+  }
+
+  // Repeat dimming for Red, Green, and Blue
+  // Red dimming
+  lcd.clear();
+  lcd.setCursor(7, 1);
+  lcd.print("Dimming Red");
+  for (int step = dimmingSteps; step >= 0; step--) {
+    uint8_t brightness = (255 * step) / dimmingSteps;
+    for (int i = 0; i < CP; i++) {
+      strip.setPixelColor(i, strip.Color(0, brightness, 0, 0));
+    }
+    strip.show();
+    delay(100);
+  }
+
+  // Green dimming
+  lcd.clear();
+  lcd.setCursor(7, 1);
+  lcd.print("Dimming Green");
+  for (int step = dimmingSteps; step >= 0; step--) {
+    uint8_t brightness = (255 * step) / dimmingSteps;
+    for (int i = 0; i < CP; i++) {
+      strip.setPixelColor(i, strip.Color(0, 0, brightness, 0));
+    }
+    strip.show();
+    delay(100);
+  }
+
+  // Blue dimming
+  lcd.clear();
+  lcd.setCursor(7, 1);
+  lcd.print("Dimming Blue");
+  for (int step = dimmingSteps; step >= 0; step--) {
+    uint8_t brightness = (255 * step) / dimmingSteps;
+    for (int i = 0; i < CP; i++) {
+      strip.setPixelColor(i, strip.Color(0, 0, 0, brightness));
+    }
+    strip.show();
+    delay(100);
+  }
+
+  // Turn OFF all LEDs after dimming
+  lcd.clear();
+  for (int i = 0; i < CP; i++) {
+    strip.setPixelColor(i, strip.Color(0, 0, 0, 0));
+  }
+  strip.show();
+  delay(500);
 }

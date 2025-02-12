@@ -2,12 +2,13 @@
 Title: Pixel Tapelight Functional Test Code             *
 Author: Franco Nepomuceno                               *
 Date: 9/10/24                                           *
-Rev: A                                                  *
+Rev: B                                                  *
 Description:                                            *
-Initial Release. Test kit for the following LED driver: *
+Added W28214                                            *
 a. WS2811                                               *
 b. UCS2804B                                             *
-c. TX1818                                               *
+c. TX1818 
+d. WS2814                                              *
                                                         *    
 Note#1: LED driver is the chip that controls the LEDs   *   
 on tapelight. In this code, the name changed into       *
@@ -18,7 +19,8 @@ Note#2: WS2811 and TX1818 have the same library while   *
 UCS2904B has its own using NEOPIXEL.                    *
 a. WS2811: FASTLED                                      *
 b. TX1818: FASLED                                       *
-c. UCS2904B: NEOPIXEL                                   *
+c. UCS2904B: NEOPIXEL  
+d. WS2814: NEOPIXEL with some alteration                *
                                                         *
 Note#3: Processing user input are basically copies of   *  
 cpAnswerKeypad.h with variable input LCD display        *
@@ -75,13 +77,12 @@ void setup()
   lcd.setCursor(3, 2);
   lcd.print("Pixel Test Kit");
   lcd.setCursor(8, 3);
-  lcd.print("Rev A");                                   //Change if revised
+  lcd.print("Rev B");                                   //Change if revised
   delay(6000);
   lcd.clear();
 
-
-  // Call setup_question and pass user_confirmation_1 and user_confirmation_2 by reference
-  setup_question();
+  /*This is just a set of question to set up the equipment*/
+  setup_question();                 //Keypad answers and conversion inside this file unlike the next questions. 
 
   /********************************************
    * Ask the user for the number of cut-points *
@@ -126,15 +127,16 @@ void setup()
     Serial.read();  // Discard leftover characters
   }
   */
-
   /*******************************************************************
    * Ask the user for the kind of LED driver for the tapelight.       *
    * This section should be revised when new LED driver is introduced.*
    ********************************************************************/
-  Driver_question();                                      // Ask for LED driver selection
+  digitCount = 0;
+  page_1_chipSelect();                                   //Just a introduction page for chip selection 1.5sec delay
+  page_2_chipSelect();                                   // Ask for LED driver selection
 
   chipset_userInput = processKeypadChipset();
-  chipset = atoi(chipset_userInput);                     //Changes from char type to int type
+  chipset = atoi(chipset_userInput);                         //Change char type to int type
 
   bool valid_answer = false;
   while (!valid_answer)                                 // Loop while answer is incorrect
@@ -142,43 +144,38 @@ void setup()
     switch (chipset)
     {
       case 1: // WS2811 or TX1818
-        FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, CP);
-          // Initialize FastLED and clear LEDs
-        FastLED.clear();
-        FastLED.show();
-        valid_answer = true;                                    //Loop exit   
-        break;
-      
       case 2: // UCS2904B
-        //UCS2904 Initialization is in the function itself
-        valid_answer = true;                                    //Loop exit
+      case 3: //WS2814
+        valid_answer = true;                                    //Loop exit   
         break;
 
       default: // Invalid Choice
-        Driver_question();                                     // Re-ask the question
+        lcd.clear();
+        lcd.setCursor(0, 2);
+        lcd.print("Invalid choice");
+        page_2_chipSelect();    
         chipset_userInput = processKeypadChipset();
         chipset = atoi(chipset_userInput);                     //Changes from char type to int type
         break;
     }
   }
-
 }
 
 void loop() 
 {
   if (chipset == 1)
   {
-  
+    FastLED.addLeds<WS2811, DATA_PIN, RGB>(leds, CP);
     Blink_all_color(leds, CP);
     lcd.clear();
     lcd.setCursor(7,1);
     lcd.print("Wait...");
-    delay(1500);
+    delay(1000);
     Color_race(leds, CP);
     lcd.clear();
     lcd.setCursor(7,1);
     lcd.print("Wait...");
-    delay(1500);
+    delay(1000);
     AutoDim_all_color(leds, CP, 255);
 
     lcd.clear();
@@ -187,90 +184,154 @@ void loop()
 
     ET_userInput = processKeypadEndTest();
     endTest = atoi(ET_userInput); 
-    
-    // Restart or continue based on user input
-    if (endTest == 1)
-    {
-      lcd.clear();
-      lcd.setCursor(0, 1);
-      lcd.print("Restarting...");
-      delay(1000);
-      // Soft reset to restart the program
-      asm volatile ("jmp 0");
-    }
-    else if (endTest == 2)
-    {
-      lcd.clear();
-      lcd.setCursor(0, 1);
-      lcd.print("Continuing...");
-      delay(1000);
-      // No need for `continue`, the function will naturally loop back to the top of `loop()`
-    }
-    else
-    {
-      lcd.clear();
-      lcd.setCursor(0, 1);
-      lcd.print("LOL! Really?");
-      lcd.setCursor(0, 2);
-      lcd.print("Wrong input");
-      lcd.setCursor(0, 3);
-      lcd.print("BACK TO HOMEPAGE");
-      delay(2500);
-      asm volatile("jmp 0"); //Soft restart
+
+    bool endprogram = false;
+    while(!endprogram){
+      switch(endTest){
+        case 1: 
+          lcd.clear();
+          lcd.setCursor(0, 1);
+          lcd.print("Restarting prog..");
+          delay(1000);
+          //Soft reset
+          asm volatile("jmp 0");
+          break;
+        
+        case 2:
+          lcd.clear();
+          lcd.setCursor(0, 1);
+          lcd.print("Restart test..");
+          delay(1000);
+          endprogram = true;
+           // No need for `continue`, the loop will naturally repeat
+           break;
+        
+        default:
+          lcd.clear();
+          lcd.setCursor(0, 1);
+          lcd.print("LOL! Really?");
+          lcd.setCursor(0, 2);
+          lcd.print("Wrong input");
+          lcd.setCursor(0, 3);
+          lcd.print("BACK TO HOMEPAGE");
+          delay(2500);
+          asm volatile("jmp 0"); //Soft restart
+          break;
+      }
     }
   }
   else if (chipset == 2)
   {
-    // Execute the LED driver 2 logic
-    BlinkAllColorNeo(CP);
+     // Execute the LED driver 2 logic
+    USC2904B_blink(CP);
+    lcd.clear();
     lcd.setCursor(7,1);
     lcd.print("Wait...");
-    delay(1500);
-    ColorRaceNeo(CP); 
-    delay(500);
+    delay(1000);
+    USC2904B_race(CP); 
+    lcd.clear();
     lcd.setCursor(7,1);
     lcd.print("Wait...");
-    delay(1500);
-    UCS2904B_2(CP);
+    delay(1000);
+    UCS2904B_dimming(CP);
 
     lcd.clear();
     lcd.setCursor(0, 1);
     lcd.print("End test? 1-Yes 2-No");
 
-    
     ET_userInput = processKeypadEndTest();
-    endTest = atoi(ET_userInput); 
+    endTest = atoi(ET_userInput);
 
-    // Restart or continue based on user input
-    if (endTest == 1)
-    {
-      lcd.clear();
-      lcd.setCursor(0, 1);
-      lcd.print("Restarting...");
-      delay(1000);
-      // Soft reset to restart the program
-      asm volatile ("jmp 0");
-    }
-    else if (endTest == 2)
-    {
-      lcd.clear();
-      lcd.setCursor(0, 1);
-      lcd.print("Continuing...");
-      delay(1000);
-      // No need for `continue`, the function will naturally loop back to the top of `loop()`
-    }
-    else
-    {
-      lcd.clear();
-      lcd.setCursor(0, 1);
-      lcd.print("LOL! Really?");
-      lcd.setCursor(0, 2);
-      lcd.print("Wrong input");
-      lcd.setCursor(0, 3);
-      lcd.print("BACK TO HOMEPAGE");
-      delay(2500);
-      asm volatile("jmp 0"); //Soft restart
-      
+    bool endprogram = false;
+    while(!endprogram){
+      switch(endTest){
+        case 1: 
+          lcd.clear();
+          lcd.setCursor(0, 1);
+          lcd.print("Restarting prog..");
+          delay(1000);
+          endprogram = true;
+          //Soft reset
+          asm volatile("jmp 0");
+          break;
+        
+        case 2:
+          lcd.clear();
+          lcd.setCursor(0, 1);
+          lcd.print("Restart test..");
+          delay(1000);
+          endprogram = true;
+           // No need for `continue`, the loop will naturally repeat
+           break;
+        
+        default:
+          lcd.clear();
+          lcd.setCursor(0, 1);
+          lcd.print("LOL! Really?");
+          lcd.setCursor(0, 2);
+          lcd.print("Wrong input");
+          lcd.setCursor(0, 3);
+          lcd.print("BACK TO HOMEPAGE");
+          delay(2500);
+          asm volatile("jmp 0"); //Soft restart
+          break;
+      } 
     }
   }
+  else if (chipset == 3){
+    WS2814_blink(CP);
+    lcd.clear();
+    lcd.setCursor(7,1);
+    lcd.print("Wait...");
+    delay(1000);
+    WS2814_race(CP);
+    lcd.clear();
+    lcd.setCursor(7, 1);
+    lcd.print("Wait...");
+    delay(1000);
+    WS2814_dimming(CP);
+
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print("End test? 1-Yes 2-No");
+
+    ET_userInput = processKeypadEndTest();
+    endTest = atoi(ET_userInput);
+
+    bool endprogram = false;
+    while(!endprogram){
+      switch(endTest){
+        case 1: 
+          lcd.clear();
+          lcd.setCursor(0, 1);
+          lcd.print("Restarting prog..");
+          delay(1000);
+          //Soft reset
+          asm volatile("jmp 0");
+          break;
+        
+        case 2:
+          lcd.clear();
+          lcd.setCursor(0, 1);
+          lcd.print("Restart test..");
+          delay(1000);
+          endprogram = true;
+          // No need for `continue`, the loop will naturally repeat
+          break;
+        
+        default:
+          lcd.clear();
+          lcd.setCursor(0, 1);
+          lcd.print("LOL! Really?");
+          lcd.setCursor(0, 2);
+          lcd.print("Wrong input");
+          lcd.setCursor(0, 3);
+          lcd.print("BACK TO HOMEPAGE");
+          delay(2500);
+          asm volatile("jmp 0"); //Soft restart
+          break;
+        } 
+      }
+    }
+    
 }
